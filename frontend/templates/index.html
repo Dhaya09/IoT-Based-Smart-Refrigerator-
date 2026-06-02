@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}🏠 Dashboard{% endblock %}
+{% block page_sub %}System Overview & Live Status{% endblock %}
+
+{% block content %}
+
+<!-- System Status Banner -->
+<div class="card mb-6" id="status-banner" style="background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;border:none;">
+  <div class="flex items-center justify-between">
+    <div>
+      <div style="font-size:13px;opacity:.8;margin-bottom:4px;">Overall System Status</div>
+      <div style="font-size:28px;font-weight:800;" id="banner-status">🟢 Normal</div>
+      <div style="font-size:12px;opacity:.7;margin-top:4px;">All sensors operational</div>
+    </div>
+    <div style="font-size:64px;opacity:.3;">🧊</div>
+  </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="grid-5 mb-6">
+  <div class="stat-card">
+    <div class="stat-icon blue">📡</div>
+    <div><div class="stat-value" id="stat-sensors">11</div><div class="stat-label">Active Sensors</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow">⚠️</div>
+    <div><div class="stat-value" id="stat-alerts">0</div><div class="stat-label">Active Alerts</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">🚨</div>
+    <div><div class="stat-value" id="stat-critical">0</div><div class="stat-label">Critical Alerts</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">🚪</div>
+    <div><div class="stat-value" id="stat-door">Closed</div><div class="stat-label">Door Status</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue">🌡️</div>
+    <div><div class="stat-value" id="stat-temp">4°C</div><div class="stat-label">Temperature</div></div>
+  </div>
+</div>
+
+<!-- Live Widgets + Charts Row -->
+<div class="grid-2 mb-6">
+  <!-- Mini Widgets -->
+  <div class="card">
+    <div class="section-title">⚡ Live Sensor Snapshot</div>
+    <div class="grid-3" style="gap:10px;">
+      <div class="mini-widget" id="w-temp">
+        <div class="mini-widget-icon">🌡️</div>
+        <div class="mini-widget-value" id="wv-temp">4.0°C</div>
+        <div class="mini-widget-label">Temperature</div>
+      </div>
+      <div class="mini-widget" id="w-humidity">
+        <div class="mini-widget-icon">💧</div>
+        <div class="mini-widget-value" id="wv-humidity">55%</div>
+        <div class="mini-widget-label">Humidity</div>
+      </div>
+      <div class="mini-widget" id="w-gas">
+        <div class="mini-widget-icon">💨</div>
+        <div class="mini-widget-value" id="wv-gas">400</div>
+        <div class="mini-widget-label">Air Quality</div>
+      </div>
+      <div class="mini-widget" id="w-ammonia">
+        <div class="mini-widget-icon">🧪</div>
+        <div class="mini-widget-value" id="wv-ammonia">100</div>
+        <div class="mini-widget-label">Ammonia</div>
+      </div>
+      <div class="mini-widget" id="w-weight">
+        <div class="mini-widget-icon">⚖️</div>
+        <div class="mini-widget-value" id="wv-weight">5000g</div>
+        <div class="mini-widget-label">Weight</div>
+      </div>
+      <div class="mini-widget" id="w-door">
+        <div class="mini-widget-icon" id="door-icon">🔒</div>
+        <div class="mini-widget-value" id="wv-door">Closed</div>
+        <div class="mini-widget-label">Door</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Alerts -->
+  <div class="card">
+    <div class="section-title">🚨 Recent Alerts
+      <a href="/alerts" style="margin-left:auto;font-size:12px;font-weight:500;color:var(--primary);text-decoration:none;">View all →</a>
+    </div>
+    <div id="recent-alerts-list">
+      <div class="empty-state"><div class="empty-icon">✅</div><p>No active alerts</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="grid-2 mb-6">
+  <div class="card">
+    <div class="section-title">🌡️ Temperature Trend</div>
+    <div class="chart-wrap"><canvas id="chart-temp"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="section-title">💨 Ammonia Trend</div>
+    <div class="chart-wrap"><canvas id="chart-gas"></canvas></div>
+  </div>
+</div>
+
+<!-- Demo Scenarios -->
+<div class="card">
+  <div class="section-title">🎮 Quick Demo Scenarios</div>
+  <div class="scenario-grid">
+    <button class="scenario-btn danger" onclick="runScenario('spoilage')">
+      <span class="s-icon">🧪</span>Spoilage Detection<br><small>Ammonia spike</small>
+    </button>
+    <button class="scenario-btn danger" onclick="runScenario('gasleak')">
+      <span class="s-icon">💥</span>Gas Leak Alert<br><small>LPG spike</small>
+    </button>
+    <button class="scenario-btn warning" onclick="runScenario('door')">
+      <span class="s-icon">🚪</span>Door Open Alert<br><small>Timer trigger</small>
+    </button>
+    <button class="scenario-btn info" onclick="runScenario('lowstock')">
+      <span class="s-icon">⚖️</span>Low Stock Alert<br><small>Weight drop</small>
+    </button>
+    <button class="scenario-btn reset" onclick="runScenario('reset')">
+      <span class="s-icon">🔄</span>Reset All<br><small>Normal state</small>
+    </button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LABELS_MAX = 20;
+let tempHistory = Array(LABELS_MAX).fill(4);
+let gasHistory  = Array(LABELS_MAX).fill(100);
+let timeLabels  = Array(LABELS_MAX).fill('');
+
+function makeChart(id, label, color, data) {
+  return new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels: [...timeLabels],
+      datasets: [{ label, data: [...data], borderColor: color, backgroundColor: color+'22',
+        fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { grid: { color: '#f0f0f0' } }, x: { ticks: { maxTicksLimit: 5 }, grid: { display: false } } }
+    }
+  });
+}
+
+const chartTemp = makeChart('chart-temp', 'Temperature', '#1a73e8', tempHistory);
+const chartGas  = makeChart('chart-gas',  'Ammonia',     '#dc3545', gasHistory);
+
+function pushChart(chart, arr, val) {
+  arr.push(parseFloat(val.toFixed(1)));
+  if (arr.length > LABELS_MAX) arr.shift();
+  const t = new Date().toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  chart.data.labels.push(t);
+  if (chart.data.labels.length > LABELS_MAX) chart.data.labels.shift();
+  chart.data.datasets[0].data = [...arr];
+  chart.update('none');
+}
+
+async function fetchDashboard() {
+  try {
+    const d = await apiFetch('/api/status');
+    const s = d.sensors;
+
+    // Status banner
+    const statusMap = { Normal: ['🟢 Normal','#1a73e8','#1557b0'], Warning: ['🟡 Warning','#856404','#a07010'], Critical: ['🔴 Critical','#dc3545','#b02030'] };
+    const [txt, c1, c2] = statusMap[d.overall_status] || statusMap.Normal;
+    document.getElementById('banner-status').textContent = txt;
+    document.getElementById('status-banner').style.background = `linear-gradient(135deg,${c1},${c2})`;
+    document.getElementById('status-banner').querySelector('div > div:last-child').textContent =
+      d.overall_status === 'Normal' ? 'All sensors operational' : `${d.alert_count} active alert(s) detected`;
+
+    // Stats
+    document.getElementById('stat-alerts').textContent   = d.alert_count;
+    document.getElementById('stat-critical').textContent = d.critical_count;
+    document.getElementById('stat-door').textContent     = s.door ? '🔓 Open' : '🔒 Closed';
+    document.getElementById('stat-temp').textContent     = s.temperature.toFixed(1) + '°C';
+
+    // Colour stat cards
+    document.getElementById('stat-alerts').closest('.stat-card').style.borderColor = d.alert_count > 0 ? 'var(--warning)' : '';
+    document.getElementById('stat-critical').closest('.stat-card').style.borderColor = d.critical_count > 0 ? 'var(--danger)' : '';
+
+    // Mini widgets
+    setWidget('temp',    s.temperature.toFixed(1) + '°C',  s.temperature > 8 || s.temperature < 1);
+    setWidget('humidity',s.humidity.toFixed(0) + '%',       s.humidity > 80 || s.humidity < 30);
+    setWidget('gas',     s.mq135.toFixed(0),                s.mq135 > 2500);
+    setWidget('ammonia', s.mq137.toFixed(0),                s.mq137 > 2500, s.mq137 > 2500);
+    setWidget('weight',  s.weight.toFixed(0) + 'g',         s.weight < 1000);
+    document.getElementById('wv-door').textContent = s.door ? 'Open' : 'Closed';
+    document.getElementById('door-icon').textContent = s.door ? '🔓' : '🔒';
+    document.getElementById('w-door').className = 'mini-widget' + (s.door ? ' warning' : '');
+
+    // Charts
+    pushChart(chartTemp, tempHistory, s.temperature);
+    pushChart(chartGas,  gasHistory,  s.mq137);
+
+    // Recent alerts
+    const alertsEl = document.getElementById('recent-alerts-list');
+    if (d.recent_alerts && d.recent_alerts.length > 0) {
+      alertsEl.innerHTML = d.recent_alerts.slice(0,5).map(a => `
+        <div class="alert-item ${a.severity} ${a.status}">
+          <div>
+            <div class="alert-msg">${a.message}</div>
+            <div class="alert-meta">Sensor: ${a.sensor.toUpperCase()} · ${a.timestamp}</div>
+          </div>
+          <span class="alert-badge ${a.severity}">${a.severity}</span>
+        </div>
+      `).join('');
+    } else {
+      alertsEl.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No active alerts</p></div>';
+    }
+  } catch(e) { console.error(e); }
+}
+
+function setWidget(id, val, warn, crit=false) {
+  document.getElementById('wv-' + id).textContent = val;
+  const w = document.getElementById('w-' + id);
+  w.className = 'mini-widget' + (crit ? ' critical' : warn ? ' warning' : '');
+}
+
+async function runScenario(name) {
+  await apiFetch(`/api/simulate/${name}`, 'POST');
+  const msgs = { spoilage:'Spoilage scenario triggered 🧪', gasleak:'Gas leak scenario triggered 💥', door:'Door open scenario triggered 🚪', lowstock:'Low stock scenario triggered ⚖️', reset:'All sensors reset to normal ✅' };
+  showToast('Scenario', msgs[name] || name, name === 'reset' ? 'success' : 'warning');
+  fetchDashboard();
+}
+
+fetchDashboard();
+setInterval(fetchDashboard, 3000);
+</script>
+{% endblock %}

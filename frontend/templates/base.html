@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Smart Fridge{% endblock %} — Digital Twin</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/static/js/app.js" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span class="logo-icon">🧊</span>
+    <div>
+      <h2>Smart Fridge</h2>
+      <p>Digital Twin v1.0</p>
+    </div>
+  </div>
+
+  <nav class="nav-section">
+    <div class="nav-section-title">Main</div>
+    <a href="/" class="nav-link">
+      <span class="nav-icon">🏠</span>
+      <span>Dashboard</span>
+    </a>
+    <a href="/sensors" class="nav-link">
+      <span class="nav-icon">🎛️</span>
+      <span>Sensors Control</span>
+    </a>
+  </nav>
+
+  <nav class="nav-section">
+    <div class="nav-section-title">Monitoring</div>
+    <a href="/alerts" class="nav-link">
+      <span class="nav-icon">🚨</span>
+      <span>Alerts</span>
+      <span class="badge alert-nav-badge" style="display:none">0</span>
+    </a>
+    <a href="/logs" class="nav-link">
+      <span class="nav-icon">📜</span>
+      <span>Logs</span>
+    </a>
+  </nav>
+
+  <nav class="nav-section">
+    <div class="nav-section-title">Config</div>
+    <a href="/settings" class="nav-link">
+      <span class="nav-icon">⚙️</span>
+      <span>Settings</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">© 2025 Smart Fridge IoT</div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <header class="topbar">
+    <div>
+      <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+      <div class="topbar-subtitle">{% block page_sub %}Real-time IoT Monitoring Platform{% endblock %}</div>
+    </div>
+    <div class="topbar-right">
+      <span class="text-muted" id="live-clock"></span>
+      <span class="status-pill Normal" id="overall-status">Normal</span>
+    </div>
+  </header>
+
+  <div class="page-content">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<script>
+// Live clock
+setInterval(() => {
+  const el = document.getElementById('live-clock');
+  if (el) el.textContent = new Date().toLocaleTimeString();
+}, 1000);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

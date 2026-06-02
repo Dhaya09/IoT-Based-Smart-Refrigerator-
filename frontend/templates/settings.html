@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}⚙️ Settings{% endblock %}
+{% block page_sub %}Email configuration and system preferences{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="gap:24px;align-items:start;">
+
+  <!-- Email Settings -->
+  <div class="card">
+    <div class="section-title">📧 Email Alert Configuration</div>
+    <div class="form-group">
+      <label class="form-label">Recipient Email Address</label>
+      <input type="email" class="form-input" id="email-input" placeholder="you@example.com">
+      <div class="text-muted" style="margin-top:6px;">Alerts will be sent to this address when critical events occur.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email Alerts</label>
+      <div class="toggle-wrap">
+        <label class="toggle">
+          <input type="checkbox" id="email-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label" id="email-toggle-label">Disabled</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+  </div>
+
+  <!-- SMTP Config Info -->
+  <div class="card">
+    <div class="section-title">🔧 SMTP Configuration</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+      To enable email alerts, configure your SMTP credentials in <code style="background:#f0f4ff;padding:2px 6px;border-radius:4px;">backend/mail.py</code>:
+    </p>
+    <div style="background:var(--sidebar-bg);border-radius:8px;padding:16px;font-family:monospace;font-size:12px;color:#a8c4e0;line-height:1.8;">
+      SMTP_HOST = <span style="color:#90ee90;">"smtp.gmail.com"</span><br>
+      SMTP_PORT = <span style="color:#ffd700;">587</span><br>
+      SMTP_USER = <span style="color:#90ee90;">"your_email@gmail.com"</span><br>
+      SMTP_PASS = <span style="color:#90ee90;">"your_app_password"</span>
+    </div>
+    <div style="margin-top:14px;padding:12px;background:#fff3cd;border-radius:8px;font-size:12px;color:#856404;">
+      <strong>💡 Gmail Tip:</strong> Use an <a href="https://support.google.com/accounts/answer/185833" target="_blank">App Password</a> 
+      (not your normal password). Enable 2FA on your Google account first.
+    </div>
+  </div>
+
+  <!-- Alert Rules Reference -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <div class="section-title">📋 Alert Rules Reference</div>
+    <div class="grid-3" style="gap:12px;">
+      <div style="background:#fff8f8;border:1px solid #ffcdd2;border-radius:8px;padding:14px;">
+        <div style="font-weight:700;color:var(--danger);margin-bottom:8px;">🚨 Critical Rules</div>
+        <ul style="font-size:12px;list-style:none;line-height:2;">
+          <li>🧪 Ammonia (MQ-137) &gt; 2500 ppm</li>
+          <li>🔥 LPG &gt; 3000 ppm</li>
+          <li>☠️ CO &gt; 200 ppm</li>
+          <li>🚪 Door open &gt; 30 seconds</li>
+        </ul>
+      </div>
+      <div style="background:#fffde7;border:1px solid #ffe082;border-radius:8px;padding:14px;">
+        <div style="font-weight:700;color:#856404;margin-bottom:8px;">⚠️ Warning Rules</div>
+        <ul style="font-size:12px;list-style:none;line-height:2;">
+          <li>🌡️ Temperature &gt; 8°C or &lt; 1°C</li>
+          <li>💧 Humidity &gt; 80% or &lt; 30%</li>
+          <li>🌫️ Air Quality &gt; 2500 ppm</li>
+          <li>⚖️ Weight &lt; 1000 g</li>
+          <li>📊 Pressure &lt; 1000 hPa</li>
+          <li>🥛 Milk Level &lt; 500 ml</li>
+          <li>💡 Door open + Light &gt; 70%</li>
+        </ul>
+      </div>
+      <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:14px;">
+        <div style="font-weight:700;color:var(--success);margin-bottom:8px;">✅ Email Triggers</div>
+        <ul style="font-size:12px;list-style:none;line-height:2;">
+          <li>📧 All Critical alerts → Email</li>
+          <li>📧 All Warning alerts → Email</li>
+          <li>📧 Subject: Smart Fridge Alert 🚨</li>
+          <li>📧 Includes: sensor, value, action</li>
+          <li>📧 HTML formatted email</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSettings() {
+  const s = await apiFetch('/api/settings');
+  document.getElementById('email-input').value = s.email || '';
+  const tog = document.getElementById('email-toggle');
+  tog.checked = !!s.email_alerts_enabled;
+  document.getElementById('email-toggle-label').textContent = tog.checked ? 'Enabled ✅' : 'Disabled';
+}
+
+document.getElementById('email-toggle').addEventListener('change', function() {
+  document.getElementById('email-toggle-label').textContent = this.checked ? 'Enabled ✅' : 'Disabled';
+});
+
+async function saveSettings() {
+  const email = document.getElementById('email-input').value.trim();
+  const enabled = document.getElementById('email-toggle').checked;
+  if (enabled && !email) {
+    showToast('Error', 'Please enter an email address first', 'critical');
+    return;
+  }
+  await apiFetch('/api/settings', 'POST', { email, email_alerts_enabled: enabled });
+  showToast('Saved!', 'Email settings saved successfully', 'success');
+}
+
+loadSettings();
+</script>
+{% endblock %}

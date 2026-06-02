@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Sensors Control{% endblock %}
+{% block page_title %}🎛️ Sensors Control{% endblock %}
+{% block page_sub %}Interact with all virtual sensors in real-time{% endblock %}
+
+{% block content %}
+
+<div id="sensors-grid" class="grid-3 mb-6">
+  <!-- Cards injected by JS -->
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SENSOR_DEFS = [
+  { key:'temperature', label:'Temperature', icon:'🌡️', unit:'°C', min:0, max:50, step:0.5, type:'slider',
+    warnFn: v => v > 8 || v < 1, critFn: v => false,
+    hint: 'Safe: 1–8 °C' },
+  { key:'humidity', label:'Humidity', icon:'💧', unit:'%', min:0, max:100, step:1, type:'slider',
+    warnFn: v => v > 80 || v < 30, critFn: v => false,
+    hint: 'Safe: 30–80%' },
+  { key:'mq135', label:'Air Quality (MQ-135)', icon:'🌫️', unit:'ppm', min:0, max:5000, step:50, type:'slider',
+    warnFn: v => v > 2500, critFn: v => false,
+    hint: 'Warn > 2500 ppm' },
+  { key:'mq137', label:'Ammonia (MQ-137)', icon:'🧪', unit:'ppm', min:0, max:5000, step:50, type:'slider',
+    warnFn: v => v > 1500, critFn: v => v > 2500,
+    hint: 'Critical > 2500 ppm' },
+  { key:'lpg', label:'LPG Gas', icon:'🔥', unit:'ppm', min:0, max:6000, step:100, type:'slider',
+    warnFn: v => v > 2000, critFn: v => v > 3000,
+    hint: 'Critical > 3000 ppm' },
+  { key:'co', label:'Carbon Monoxide (CO)', icon:'☠️', unit:'ppm', min:0, max:500, step:5, type:'slider',
+    warnFn: v => v > 150, critFn: v => v > 200,
+    hint: 'Critical > 200 ppm' },
+  { key:'weight', label:'Inventory Weight', icon:'⚖️', unit:'g', min:0, max:20000, step:100, type:'slider',
+    warnFn: v => v < 1000, critFn: v => false,
+    hint: 'Warn < 1000 g' },
+  { key:'door', label:'Door', icon:'🚪', unit:'', min:0, max:1, step:1, type:'toggle',
+    warnFn: v => v, critFn: v => false,
+    hint: 'Open/Close door' },
+  { key:'light', label:'Internal Light', icon:'💡', unit:'%', min:0, max:100, step:5, type:'slider',
+    warnFn: v => false, critFn: v => false,
+    hint: 'Brightness level' },
+  { key:'milk', label:'Milk Level', icon:'🥛', unit:'ml', min:0, max:2000, step:50, type:'slider',
+    warnFn: v => v < 500, critFn: v => false,
+    hint: 'Warn < 500 ml' },
+  { key:'pressure', label:'Internal Pressure', icon:'📊', unit:'hPa', min:800, max:1100, step:5, type:'slider',
+    warnFn: v => v < 1000, critFn: v => false,
+    hint: 'Warn < 1000 hPa' },
+];
+
+let currentValues = {};
+
+function buildCards() {
+  const grid = document.getElementById('sensors-grid');
+  grid.innerHTML = SENSOR_DEFS.map(s => {
+    if (s.type === 'toggle') {
+      return `
+      <div class="sensor-card" id="card-${s.key}">
+        <div class="sensor-header">
+          <span class="sensor-icon">${s.icon}</span>
+          <span class="sensor-name">${s.label}</span>
+        </div>
+        <div class="sensor-value-display" id="val-${s.key}">Closed</div>
+        <div class="sensor-unit">${s.hint}</div>
+        <div class="sensor-status-text">
+          <span class="sensor-status-dot" id="dot-${s.key}"></span>
+          <span id="status-${s.key}">Normal</span>
+        </div>
+        <div class="toggle-wrap" style="margin-top:12px;">
+          <label class="toggle">
+            <input type="checkbox" id="input-${s.key}" onchange="sendUpdate('${s.key}', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label" id="toggle-label-${s.key}">Closed 🔒</span>
+        </div>
+      </div>`;
+    }
+    return `
+    <div class="sensor-card" id="card-${s.key}">
+      <div class="sensor-header">
+        <span class="sensor-icon">${s.icon}</span>
+        <span class="sensor-name">${s.label}</span>
+      </div>
+      <div class="sensor-value-display" id="val-${s.key}">—</div>
+      <div class="sensor-unit">${s.unit} · ${s.hint}</div>
+      <div class="sensor-status-text">
+        <span class="sensor-status-dot" id="dot-${s.key}"></span>
+        <span id="status-${s.key}">Normal</span>
+      </div>
+      <input type="range" id="input-${s.key}"
+        min="${s.min}" max="${s.max}" step="${s.step}" value="0"
+        oninput="onSlider('${s.key}', this.value)"
+        onchange="sendUpdate('${s.key}', this.value)">
+      <div class="flex justify-between text-muted" style="font-size:11px;margin-top:4px;">
+        <span>${s.min}</span><span>${s.max}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateCard(def, val) {
+  const numVal = parseFloat(val);
+  const card = document.getElementById(`card-${def.key}`);
+  const valEl = document.getElementById(`val-${def.key}`);
+  const dot = document.getElementById(`dot-${def.key}`);
+  const statusEl = document.getElementById(`status-${def.key}`);
+
+  const isCrit = def.critFn(numVal);
+  const isWarn = def.warnFn(numVal);
+  const cls = isCrit ? 'critical' : isWarn ? 'warning' : '';
+
+  if (def.type === 'toggle') {
+    const open = !!val;
+    valEl.textContent = open ? 'Open 🔓' : 'Closed 🔒';
+    document.getElementById(`input-${def.key}`).checked = open;
+    document.getElementById(`toggle-label-${def.key}`).textContent = open ? 'Open 🔓' : 'Closed 🔒';
+  } else {
+    valEl.textContent = numVal.toFixed(def.step < 1 ? 1 : 0);
+    document.getElementById(`input-${def.key}`).value = numVal;
+  }
+
+  valEl.className = `sensor-value-display ${cls}`;
+  dot.className = `sensor-status-dot ${cls}`;
+  card.className = `sensor-card ${cls}`;
+  statusEl.textContent = isCrit ? '⚠️ Critical' : isWarn ? '⚠️ Warning' : '✅ Normal';
+}
+
+function onSlider(key, val) {
+  const def = SENSOR_DEFS.find(s => s.key === key);
+  if (def) updateCard(def, val);
+}
+
+let sendTimer = {};
+async function sendUpdate(key, val) {
+  clearTimeout(sendTimer[key]);
+  sendTimer[key] = setTimeout(async () => {
+    const body = {};
+    body[key] = key === 'door' ? val : parseFloat(val);
+    const r = await apiFetch('/api/update', 'POST', body);
+    if (r.triggered_alerts > 0) {
+      showToast('Alert Triggered!', `${r.triggered_alerts} new alert(s) generated`, 'warning');
+    }
+  }, 300);
+}
+
+async function fetchSensors() {
+  try {
+    const d = await apiFetch('/api/status');
+    const s = d.sensors;
+    SENSOR_DEFS.forEach(def => {
+      const val = s[def.key];
+      if (val !== undefined) updateCard(def, val);
+    });
+  } catch {}
+}
+
+buildCards();
+fetchSensors();
+setInterval(fetchSensors, 3000);
+</script>
+{% endblock %}

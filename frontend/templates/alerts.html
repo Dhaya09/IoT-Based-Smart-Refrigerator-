@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Alerts{% endblock %}
+{% block page_title %}🚨 Alerts{% endblock %}
+{% block page_sub %}All system alerts with severity classification{% endblock %}
+
+{% block content %}
+
+<div class="flex items-center justify-between mb-4">
+  <div class="filter-tabs">
+    <button class="filter-tab active" onclick="setFilter('All')">All</button>
+    <button class="filter-tab" onclick="setFilter('Warning')">⚠️ Warning</button>
+    <button class="filter-tab" onclick="setFilter('Critical')">🚨 Critical</button>
+    <button class="filter-tab" onclick="setFilter('Active')">Active</button>
+    <button class="filter-tab" onclick="setFilter('Resolved')">✅ Resolved</button>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <span id="alert-count-badge" style="padding:6px 16px;background:var(--primary-light);color:var(--primary);border-radius:20px;font-size:13px;font-weight:700;">0 alerts</span>
+    <button class="btn btn-outline btn-sm" onclick="fetchAlerts()">🔄 Refresh</button>
+  </div>
+</div>
+
+<div id="alerts-container">
+  <div class="empty-state"><div class="empty-icon">✅</div><p>No alerts found</p></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allAlerts = [];
+let currentFilter = 'All';
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.includes(f) || (f==='All' && t.textContent.trim()==='All'));
+  });
+  renderAlerts();
+}
+
+function renderAlerts() {
+  let list = allAlerts;
+  if (currentFilter === 'Warning')  list = list.filter(a => a.severity === 'Warning');
+  if (currentFilter === 'Critical') list = list.filter(a => a.severity === 'Critical');
+  if (currentFilter === 'Active')   list = list.filter(a => a.status === 'Active');
+  if (currentFilter === 'Resolved') list = list.filter(a => a.status === 'Resolved');
+
+  document.getElementById('alert-count-badge').textContent = `${list.length} alert${list.length!==1?'s':''}`;
+
+  const container = document.getElementById('alerts-container');
+  if (list.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No alerts matching filter</p></div>';
+    return;
+  }
+
+  container.innerHTML = list.map(a => `
+    <div class="alert-item ${a.severity} ${a.status}" id="alert-${a.id}">
+      <div style="flex:1">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="alert-badge ${a.severity}">${a.severity}</span>
+          ${a.status === 'Resolved' ? '<span class="alert-badge Resolved">✅ Resolved</span>' : '<span class="alert-badge" style="background:#d4edda;color:#155724;">🔴 Active</span>'}
+        </div>
+        <div class="alert-msg">${a.message}</div>
+        <div class="alert-meta">
+          <span>Sensor: <strong>${a.sensor.toUpperCase()}</strong></span>
+          &nbsp;·&nbsp;
+          <span>ID #${a.id}</span>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div class="alert-time">${a.timestamp}</div>
+        ${a.status === 'Active' ? `<button class="btn btn-success btn-sm" style="margin-top:8px;" onclick="resolveAlert(${a.id})">✅ Resolve</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function resolveAlert(id) {
+  await apiFetch(`/api/alerts/${id}/resolve`, 'POST');
+  showToast('Alert Resolved', `Alert #${id} marked as resolved`, 'success');
+  fetchAlerts();
+}
+
+async function fetchAlerts() {
+  try {
+    allAlerts = await apiFetch('/api/alerts');
+    renderAlerts();
+    updateNavBadge(allAlerts.filter(a => a.status === 'Active').length);
+  } catch {}
+}
+
+fetchAlerts();
+setInterval(fetchAlerts, 4000);
+</script>
+{% endblock %}
