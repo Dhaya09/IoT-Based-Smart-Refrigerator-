@@ -244,10 +244,10 @@ The background engine thread runs this loop automatically every 3 seconds, indep
 
 ## License
 
-This project is open source. See [LICENSE](LICENSE) for details.
+This project is open source.
 
 ---
 
 ## Contact
 
-Built by **Dhayaisro** — [dhayaisro09@gmail.com](mailto:dhayaisro09@gmail.com)
+Built by **Dhayanidhi** — [dhayaisro09@gmail.com](mailto:dhayaisro09@gmail.com)
