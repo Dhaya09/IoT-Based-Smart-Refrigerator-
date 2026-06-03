@@ -240,11 +240,6 @@ The background engine thread runs this loop automatically every 3 seconds, indep
 - Mobile push notifications as an alternative to email
 - Historical data charts and exportable CSV logs
 
----
-
-## License
-
-This project is open source.
 
 ---
 
